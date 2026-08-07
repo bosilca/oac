@@ -206,9 +206,14 @@ def check_email(config, repo, commit):
 
 """
 Global regexp, because we use it every time we call check_cherry_pick()
-(i.e., for each commit in this PR)
+(i.e., for each commit in this PR).
+The capture group intentionally matches any lowercase alphanumeric string,
+not just strict hex digits: a malformed hash (e.g., containing 'g'-'z')
+would still be captured and then rejected by repo.commit() with git.BadName,
+producing the correct "non-existent commit" error rather than silently
+skipping the trailer.
 """
-prog_cp = re.compile(r'\(cherry picked from commit ([0-9a-fA-F]+)\)')
+prog_cp = re.compile(r'\(cherry picked from commit ([a-z0-9]+)\)')
 
 def check_cherry_pick(config, repo, commit):
     def _is_entirely_submodule_updates(repo, commit):
@@ -242,6 +247,13 @@ def check_cherry_pick(config, repo, commit):
         found_cherry_pick_line = True
         try:
             repo.commit(match)
+        except git.BadName as e:
+            # Use a dictionary to track the non-existent hashes, just
+            # on the off chance that the same non-existent hash exists
+            # more than once in a single commit message (i.e., the
+            # dictionary will effectively give us de-duplication for
+            # free).
+            non_existent[match] = True
         except ValueError as e:
             # These errors mean that the git library recognized the
             # hash as a valid commit, but the GitHub Action didn't
@@ -251,13 +263,6 @@ def check_cherry_pick(config, repo, commit):
             # want to fail this commit until the corresponding pull request
             # is merged.
             unmerged[match] = True
-        except git.BadName as e:
-            # Use a dictionary to track the non-existent hashes, just
-            # on the off chance that the same non-existent hash exists
-            # more than once in a single commit message (i.e., the
-            # dictionary will effectively give us de-duplication for
-            # free).
-            non_existent[match] = True
 
     # Process the results for this commit
     if found_cherry_pick_line:
