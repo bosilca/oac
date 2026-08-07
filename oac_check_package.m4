@@ -541,7 +541,7 @@ AC_DEFUN([_OAC_CHECK_PACKAGE_GENERIC], [
     OAC_VAR_SCOPE_PUSH([check_package_generic_happy check_package_generic_lib])
     check_package_generic_happy=0
 
-    AS_IF([test -n "${check_package_prefix}"],
+    AS_IF([test -n "${check_package_prefix}" || test -n "${check_package_incdir}" || test -n "${check_package_libdir}"],
           [_OAC_CHECK_PACKAGE_GENERIC_PREFIX([$1], [$2], [$3], [$4], [check_package_generic_happy=1])],
           [AC_MSG_NOTICE([Searching for $1 in default search paths])
            $1_CPPFLAGS=
